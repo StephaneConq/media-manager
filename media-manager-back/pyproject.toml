@@ -1,0 +1,14 @@
+[project]
+name = "media-manager"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "dotenv>=0.9.9",
+    "fastapi>=0.115.12",
+    "python-multipart>=0.0.20",
+    "requests>=2.32.3",
+    "uvicorn>=0.34.2",
+    "watchdog>=6.0.0",
+]
