@@ -2,6 +2,7 @@ import random
 import requests
 import os
 from fastapi import HTTPException
+from models.youtube import Channel, Video
 from services.gemini import summarize
 import json
 
@@ -18,12 +19,41 @@ def search(q: str, scope: str) -> dict:
     r.raise_for_status()
     result = r.json()
     return {
-        "response": {
-            "videos": [i for i in result.get('items') if i.get('id').get('kind') == 'youtube#video'],
-            "channels": [i for i in result.get('items') if i.get('id').get('kind') == 'youtube#channel']
-        }
+        "videos": [generate_video_item(i) for i in result.get('items') if i.get('id').get('kind') == 'youtube#video'],
+        "channels": [generate_channel_item(i) for i in result.get('items') if i.get('id').get('kind') == 'youtube#channel']
     }
 
+
+def generate_video_item(item: dict) -> Video:
+    """
+    Generate a Video object from a YouTube API response.
+    :param item: The item to generate the Video object from.
+    :return: The generated Video object.
+    """
+    return Video(**{
+        "id": item.get('id').get('videoId'),
+        "id": item.get('id').get('videoId'),
+        "title": item.get('snippet').get('title'),
+        "description": item.get('snippet').get('description'),
+        "thumbnail_url": item.get('snippet').get('thumbnails').get('high').get('url'),
+        "channel_id": item.get('snippet').get('channelId'),
+        "channel_title": item.get('snippet').get('channelTitle'),
+        "published_at": item.get('snippet').get('publishedAt')
+    })
+
+def generate_channel_item(item: dict) -> Channel:
+    """
+    Generate a Channel object from a YouTube API response.
+    :param item: The item to generate the Channel object from.
+    :return: The generated Channel object.
+    """
+    return Channel(**{
+        "id": item.get('id').get('channelId'),
+        "title": item.get('snippet').get('title'),
+        "description": item.get('snippet').get('description'),
+        "thumbnail_url": item.get('snippet').get('thumbnails').get('high').get('url'),
+        "published_at": item.get('snippet').get('publishedAt')
+    })
 
 def get_comments(video_id: str, page_token: str = None) -> dict:
     """
@@ -40,23 +70,24 @@ def get_comments(video_id: str, page_token: str = None) -> dict:
         "maxResults": 100,
         "order": "relevance"
     }
-    
+
     # Only add pageToken if it exists
     if page_token:
         params["pageToken"] = page_token
-    
+
     try:
-        r = requests.get("https://www.googleapis.com/youtube/v3/commentThreads", params=params)
+        r = requests.get(
+            "https://www.googleapis.com/youtube/v3/commentThreads", params=params)
         r.raise_for_status()
         result = r.json()
-        
+
         comments = []
         for item in result.get('items', []):
             # Extract nested data more efficiently
             snippet = item.get('snippet', {})
             top_comment = snippet.get('topLevelComment', {}).get('snippet', {})
             author_channel = top_comment.get('authorChannelId', {})
-            
+
             # Build comment object
             comment = {
                 "id": item.get('id'),
@@ -66,7 +97,7 @@ def get_comments(video_id: str, page_token: str = None) -> dict:
                 "likes": top_comment.get('likeCount', 0),
                 "replies": []
             }
-            
+
             # Process replies if they exist
             replies = item.get('replies', {}).get('comments', [])
             if replies:
@@ -78,14 +109,14 @@ def get_comments(video_id: str, page_token: str = None) -> dict:
                         "likes": reply.get('snippet', {}).get('likeCount', 0)
                     } for reply in replies
                 ]
-            
+
             comments.append(comment)
-        
+
         return {
             "comments": comments,
             "nextPageToken": result.get('nextPageToken')
         }
-    
+
     except requests.exceptions.RequestException as e:
         # Handle API errors more gracefully
         error_message = f"YouTube API error: {str(e)}"
@@ -96,10 +127,10 @@ def get_comments(video_id: str, page_token: str = None) -> dict:
                     error_message = f"YouTube API error: {error_data['error']['message']}"
             except ValueError:
                 pass
-        
+
         # Re-raise as HTTPException if needed, or handle differently
-        raise HTTPException(status_code=e.response.status_code if hasattr(e, 'response') else 500, 
-                           detail=error_message)
+        raise HTTPException(status_code=e.response.status_code if hasattr(e, 'response') else 500,
+                            detail=error_message)
 
 
 def get_all_comments(video_id: str) -> list:
@@ -126,20 +157,22 @@ def is_subscribed(author, channels):
     :param channels: The list of channels to check
     :return: True if author is subscribed to any of the channels, False otherwise
     """
-    
-    r = requests.get(f"https://www.googleapis.com/youtube/v3/subscriptions?channelId={author}&key={os.getenv('YOUTUBE_API_KEY')}&part=snippet,contentDetails&maxResults=100&forChannelId={','.join(channels)}")
-    
+
+    r = requests.get(
+        f"https://www.googleapis.com/youtube/v3/subscriptions?channelId={author}&key={os.getenv('YOUTUBE_API_KEY')}&part=snippet,contentDetails&maxResults=100&forChannelId={','.join(channels)}")
+
     if r.status_code == 403:
         return False
-    
+
     res = r.json()
-    
+
     if len(res.get('items', [])) == len(channels):
         return True
-    
+
     return False
 
-def pick_random_comment(video_id: str, needs_subscription=False, channels=[], all_comments: list = None, processed_authors = []) -> dict:
+
+def pick_random_comment(video_id: str, needs_subscription=False, channels=[], all_comments: list = None, processed_authors=[]) -> dict:
     """
     Pick a random comment from a video
     :param video_id: The ID of the video to pick a comment from.
@@ -157,11 +190,12 @@ def pick_random_comment(video_id: str, needs_subscription=False, channels=[], al
 
     if needs_subscription and not is_subscribed(comment.get('author_id'), channels):
         processed_authors.append(comment.get('author_id'))
-        available_comments = [c for c in all_comments if c.get('author_id') not in processed_authors]
-        
+        available_comments = [c for c in all_comments if c.get(
+            'author_id') not in processed_authors]
+
         if available_comments == []:
             raise HTTPException(404, "No comment found meeting requirements")
-        
+
         return pick_random_comment(video_id, needs_subscription, channels, available_comments, processed_authors)
 
     return comment
@@ -175,12 +209,13 @@ def summarize_comments(video_id: str, max_comments: int = 500) -> dict:
     :return: dict with summary
     """
     all_comments = get_all_comments(video_id=video_id)
-    
+
     # Limit the number of comments to prevent processing too much data
     if len(all_comments) > max_comments:
         # Sort by likes to prioritize more relevant comments
-        all_comments = sorted(all_comments, key=lambda c: c.get('likes', 0), reverse=True)[:max_comments]
-    
+        all_comments = sorted(all_comments, key=lambda c: c.get(
+            'likes', 0), reverse=True)[:max_comments]
+
     # Transform comments into a more efficient structure without JSON conversion
     formatted_comments = []
     for c in all_comments:
@@ -190,7 +225,7 @@ def summarize_comments(video_id: str, max_comments: int = 500) -> dict:
             "likes": c.get('likes'),
             "replies": []
         }
-        
+
         # Only process replies if they exist
         if c.get('replies'):
             comment["replies"] = [
@@ -200,8 +235,8 @@ def summarize_comments(video_id: str, max_comments: int = 500) -> dict:
                     "likes": r.get('likes'),
                 } for r in c.get('replies')
             ]
-        
+
         formatted_comments.append(comment)
-    
+
     # Pass the structured data directly instead of JSON strings
     return summarize([json.dumps(c) for c in formatted_comments])

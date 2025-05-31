@@ -8,6 +8,11 @@ CREDS, PROJECT = default()
 
 
 def summarize(comments: list) -> str:
+    """
+    Summarize a list of comments.
+    :param comments: The list of comments to summarize.
+    :return: The summarized text.
+    """
     client = genai.Client(
         vertexai=True,
         project=PROJECT,
