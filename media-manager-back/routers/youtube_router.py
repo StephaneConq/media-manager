@@ -6,7 +6,7 @@ router = APIRouter(tags=["YouTube"])
 
 
 @router.get("/search", response_model=SearchResponse)
-def get_youtube_data(q: str, scope: str) -> SearchResponse:
+def get_youtube_data(q: str, scope: str = 'all') -> SearchResponse:
     """
     Search for YouTube videos and channels.
     :param q: The query to search for.

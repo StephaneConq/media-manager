@@ -1,0 +1,11 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.expand-button {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
