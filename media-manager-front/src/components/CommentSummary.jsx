@@ -41,7 +41,7 @@ export default function CommentSummary() {
             <div className="w-full my-4 rounded overflow-hidden shadow transition-all duration-300">
                 <button 
                     className={`${buttonClasses} w-full text-center flex justify-center items-center disabled:bg-blue-700 disabled:cursor-not-allowed`}
-                    onClick={handleGenerateSummary}
+                    onClick={() => handleGenerateSummary(false)}
                     disabled={isLoading}
                 >
                     {isLoading ? (

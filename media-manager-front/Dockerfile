@@ -10,7 +10,12 @@ COPY package*.json ./
 RUN npm ci
 
 # Copy the rest of the application code
-COPY . .
+COPY public ./public
+COPY src ./src
+COPY .env .
+COPY index.html .
+COPY tailwind.config.js .
+COPY vite.config.js .
 
 RUN echo 'VITE_API_BASE_URL="https://media-manager-back-593442013979.europe-west9.run.app"' >> .env
 
