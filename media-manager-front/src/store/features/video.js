@@ -26,15 +26,25 @@ export const getVideo = createAsyncThunk(
 
 export const updateCommentSummary = createAsyncThunk(
     'video/updateCommentSummary',
-    async ({videoId, regenerate = false }, { rejectWithValue }) => {
+    async ({ videoId, regenerate = false }, { rejectWithValue }) => {
         try {
-            const response = await axios.get(`${API_BASE_URL}/api/youtube/comments/summary/${videoId}?regenerate=${regenerate}`);            
+            const response = await axios.get(`${API_BASE_URL}/api/youtube/comments/summary/${videoId}?regenerate=${regenerate}`);
             return response.data.summary;
         } catch (error) {
             return rejectWithValue(error.response.data.message);
         }
     }
 )
+
+export const pickRandomComment = ({ videoId, channels, needsSubscription = false }) => {
+    return axios.get(`${API_BASE_URL}/api/youtube/comments/pick`, {
+        params: {
+            video_id: videoId,
+            needs_subscription: needsSubscription,
+            channels
+        }
+    });
+}
 
 export const videoSlice = createSlice({
     name: 'video',
@@ -48,7 +58,6 @@ export const videoSlice = createSlice({
             state.video = {};
             state.comments = [];
             state.summary = null;
-
         }
     },
     extraReducers: (builder) => {
@@ -73,7 +82,7 @@ export const videoSlice = createSlice({
                 state.status = 'loading';
             })
             .addCase(updateCommentSummary.fulfilled, (state, action) => {
-                state.status = 'succeeded';                
+                state.status = 'succeeded';
                 state.summary = action.payload;
             })
             .addCase(updateCommentSummary.rejected, (state, action) => {

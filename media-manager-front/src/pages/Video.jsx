@@ -3,8 +3,10 @@ import { useEffect, useState, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectVideo, selectComments, selectSummary, getVideo, updateCommentSummary, clearState } from '../store/features/video';
 import { formatDateToFrench, decodeHtmlEntities } from '../utils';
+import RandomCommentDialog from '../components/dialogs/RandomCommentDialog';
 import CommentSummary from '../components/CommentSummary';
 import Comment from '../components/Comment';
+import axios from 'axios';
 
 export default function Video() {
     const { videoId } = useParams(); // Access the videoId from the URL
@@ -12,11 +14,13 @@ export default function Video() {
 
     const videoData = useSelector(selectVideo);
     const commentsData = useSelector(selectComments);
-    const summaryData = useSelector(selectSummary);
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const dispatch = useDispatch();
+    
+    // Random comment picker states
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     // Use a ref to track if we've already made the API call for this videoId
     const requestMadeRef = useRef({});
@@ -61,6 +65,8 @@ export default function Video() {
         };
     }, [dispatch, videoId]); // Removed videoData from dependencies
 
+   
+
     // Check if data is actually available, regardless of loading state
     if (loading || !videoData || !videoData.title) {
         return <div>Loading...</div>;
@@ -99,6 +105,17 @@ export default function Video() {
                     {videoData.statistics && videoData.statistics.likeCount ? ` | ${videoData.statistics.likeCount} likes` : ''}
                     {videoData.statistics && videoData.statistics.commentCount ? ` | ${videoData.statistics.commentCount} comments` : ''}
                 </p>
+                
+                {/* Random Comment Picker Button */}
+                <div className="px-4 mb-4">
+                    <button 
+                        onClick={() => setIsDialogOpen(true)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+                    >
+                        Pick Random Comment
+                    </button>
+                </div>
+                
                 <h3 className="text-white text-lg font-bold leading-tight tracking-[-0.015em] px-4 pb-2 pt-4">Comments</h3>
 
                 <CommentSummary />
@@ -109,6 +126,11 @@ export default function Video() {
                     )) : <p className="text-[#93adc8] px-4">No comments available</p>
                 }
             </div>
+            
+            {/* Random Comment Picker Dialog */}
+            {isDialogOpen && (
+                <RandomCommentDialog setIsDialogOpen={setIsDialogOpen} />
+            )}
         </div>
     );
 }
