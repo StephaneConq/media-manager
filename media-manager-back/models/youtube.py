@@ -9,6 +9,7 @@ class Video(BaseModel):
     channel_id: str
     channel_title: str
     published_at: str
+    statistics: Dict[str, Any] = None
 
 
 class Channel(BaseModel):

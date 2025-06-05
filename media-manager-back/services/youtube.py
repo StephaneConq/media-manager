@@ -3,6 +3,7 @@ import requests
 import os
 from fastapi import HTTPException
 from models.youtube import Channel, Video
+from services.firestore import FirestoreService
 from services.gemini import summarize
 import json
 
@@ -31,14 +32,14 @@ def generate_video_item(item: dict) -> Video:
     :return: The generated Video object.
     """
     return Video(**{
-        "id": item.get('id').get('videoId'),
-        "id": item.get('id').get('videoId'),
+        "id": item.get('id').get('videoId') if type(item.get('id')) == dict else item.get('id'),
         "title": item.get('snippet').get('title'),
         "description": item.get('snippet').get('description'),
         "thumbnail_url": item.get('snippet').get('thumbnails').get('high').get('url'),
         "channel_id": item.get('snippet').get('channelId'),
         "channel_title": item.get('snippet').get('channelTitle'),
-        "published_at": item.get('snippet').get('publishedAt')
+        "published_at": item.get('snippet').get('publishedAt'),
+        "statistics": item.get('statistics', {})
     })
 
 def generate_channel_item(item: dict) -> Channel:
@@ -201,13 +202,20 @@ def pick_random_comment(video_id: str, needs_subscription=False, channels=[], al
     return comment
 
 
-def summarize_comments(video_id: str, max_comments: int = 500) -> dict:
+def summarize_comments(video_id: str, max_comments: int = 500, regenerate: bool = False) -> dict:
     """
     Use Gemini to summarize comments
     :param video_id: The ID of the video to summarize comments from
     :param max_comments: Maximum number of comments to process (default: 500)
     :return: dict with summary
     """
+    firestore_service = FirestoreService()
+    
+    if not regenerate:
+        summary = firestore_service.get_document("videos", video_id)
+        if summary:
+            return summary.get('summary')
+    
     all_comments = get_all_comments(video_id=video_id)
 
     # Limit the number of comments to prevent processing too much data
@@ -239,4 +247,36 @@ def summarize_comments(video_id: str, max_comments: int = 500) -> dict:
         formatted_comments.append(comment)
 
     # Pass the structured data directly instead of JSON strings
-    return summarize([json.dumps(c) for c in formatted_comments])
+    summary = summarize([json.dumps(c) for c in formatted_comments])
+    
+    firestore_service.update_document("videos", video_id, {"summary": summary})
+    return summary
+
+
+def get_video(video_id: str):
+    """
+    Get video
+    :param video_id: The ID of the video
+    :return: dict with video details
+    """
+    r = requests.get(
+        f"https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails,statistics&id={video_id}&key={os.getenv('YOUTUBE_API_KEY')}"
+    )
+    r.raise_for_status()
+    result = r.json()
+    return result.get('items', [{}])[0]
+
+
+def get_video_details(video_id: str):
+    """
+    Get video details, comments, and summary if exists
+    :param video_id: The ID of the video
+    :return: dict with video details, comments, and summary if exists
+    """
+    firestore_service = FirestoreService()
+    document = firestore_service.get_document("videos", video_id)
+    return {
+        "comments": get_all_comments(video_id),
+        "video": generate_video_item(get_video(video_id)),
+        "summary": document.get("summary") if document else None
+    }

@@ -29,3 +29,7 @@
 button {
   cursor: pointer;
 }
+
+.markdown-content > * {
+  margin: 10px 0;
+}

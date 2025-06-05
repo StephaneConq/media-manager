@@ -1,11 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import Login from './components/Login';
-import Home from './components/Home';
+import Login from './pages/Login';
+import Home from './pages/Home';
 import Toolbar from './components/Toolbar';
-// import Dashboard from './components/Dashboard'; // Your protected component
-// import Profile from './components/Profile'; // Another protected component
+import Video from './pages/Video';
 
 function App() {
   return (
@@ -25,6 +24,16 @@ function App() {
               </ProtectedRoute>
             } 
           />
+
+          <Route 
+            path="/video/:videoId"
+            element={
+              <ProtectedRoute>
+                <Video />
+              </ProtectedRoute>
+            } 
+          />
+
         </Routes>
       </AuthProvider>
     </Router>

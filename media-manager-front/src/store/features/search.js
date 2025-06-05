@@ -31,6 +31,7 @@ export const searchSlice = createSlice({
     initialState: {
         channels: [],
         videos: [],
+        selectedChannels: [], // Add this to track selected channels
         status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
         error: null,
     },
@@ -38,9 +39,25 @@ export const searchSlice = createSlice({
         clearSearch: (state) => {
             state.channels = [];
             state.videos = [];
+            state.selectedChannels = [];
             state.status = 'idle';
             state.error = null;
         },
+        toggleChannelSelection: (state, action) => {
+            const channelId = action.payload;
+            const index = state.selectedChannels.indexOf(channelId);
+            
+            if (index === -1) {
+                // Add channel to selection
+                state.selectedChannels.push(channelId);
+            } else {
+                // Remove channel from selection
+                state.selectedChannels.splice(index, 1);
+            }
+        },
+        clearChannelSelection: (state) => {
+            state.selectedChannels = [];
+        }
     },
     extraReducers: (builder) => {
         builder
@@ -52,6 +69,7 @@ export const searchSlice = createSlice({
                 // Assuming your API returns an object with channels and videos arrays
                 state.channels = action.payload.channels || [];
                 state.videos = action.payload.videos || [];
+                state.selectedChannels = []; // Reset selected channels on new search
             })
             .addCase(searchContent.rejected, (state, action) => {
                 state.status = 'failed';
@@ -60,12 +78,13 @@ export const searchSlice = createSlice({
     },
 });
 
-// Export the synchronous action
-export const { clearSearch } = searchSlice.actions;
+// Export the synchronous actions
+export const { clearSearch, toggleChannelSelection, clearChannelSelection } = searchSlice.actions;
 
 // Export selectors
 export const selectAllChannels = (state) => state.search.channels;
 export const selectAllVideos = (state) => state.search.videos;
+export const selectSelectedChannels = (state) => state.search.selectedChannels;
 export const selectSearchStatus = (state) => state.search.status;
 export const selectSearchError = (state) => state.search.error;
 
