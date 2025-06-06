@@ -41,7 +41,16 @@ export const pickRandomComment = ({ videoId, channels, needsSubscription = false
         params: {
             video_id: videoId,
             needs_subscription: needsSubscription,
-            channels
+            channels: channels.join(',')
+        }
+    });
+}
+
+export const queryChannels = ({ query }) => {
+    return axios.get(`${API_BASE_URL}/api/youtube/search`, {
+        params: {
+            q: query,
+            scope: 'channels'
         }
     });
 }
